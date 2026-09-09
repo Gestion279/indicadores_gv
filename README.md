@@ -128,6 +128,57 @@ no lo incluís, su fila del mes anterior queda como estaba.
   Si en algún momento eso deja de ser aceptable, se puede agregar
   Supabase Auth (login simple) sin rehacer el resto.
 
+## Logo e íconos
+
+- `assets/logo-app.png`: el ícono de auto+llave+engranaje, recoloreado
+  en degradé azul → rojo (los colores exactos que pasaste: `#0A4086` y
+  `#BA1212`). Va embebido directo en `index.html` (como imagen en
+  base64), así el archivo sigue siendo autocontenido.
+- `assets/logo-empresa.jpg`: tu logo original, guardado por si más
+  adelante lo querés usar en algún reporte o pantalla adicional.
+- `assets/icons/`: variantes del logo de la app en los tamaños que pide
+  un ícono de aplicación instalada (192px, 512px, y versiones
+  "maskable" con margen de seguridad para Android/iOS).
+- La paleta de colores del dashboard (fondo, tarjetas, gráficos, tags de
+  estado) **no se tocó** — sigue siendo la turquesa/verde original.
+
+## Instalar la app (PWA) en escritorio o celular
+
+El dashboard ahora se puede "instalar" como si fuera una app nativa,
+gracias a `manifest.json` y `sw.js` (service worker).
+
+- **Chrome / Edge (Windows, Mac, Android)**: al entrar aparece un botón
+  **"Instalar app"** en la barra superior (o el ícono ⊕ en la barra de
+  direcciones del navegador). Un clic y queda instalada, con su propio
+  ícono y ventana, sin la barra del navegador.
+- **iPhone / iPad (Safari)**: iOS no permite el instalador automático.
+  El botón "Instalar app" muestra el instructivo: tocar el ícono
+  **Compartir** → **"Agregar a inicio"**.
+- Una vez instalada, el botón desaparece (detecta que ya se está
+  ejecutando en modo standalone).
+
+> ⚠️ Esto **solo funciona sirviendo el sitio por http/https** (Vercel lo
+> hace automáticamente). Si abrís `index.html` haciendo doble clic desde
+> tu computadora (protocolo `file://`), el service worker no se registra
+> y el botón de instalar no va a aparecer — es una restricción de
+> seguridad de los navegadores, no un bug del archivo.
+
+## Ajustes solo para pantallas de celular
+
+Se agregó un bloque de estilos que se activa únicamente por debajo de
+640px de ancho (celulares). Desktop y tablet quedan pixel-a-pixel igual
+que antes. En celular:
+
+- El encabezado pasa a una columna (logo arriba, botones abajo) y el
+  subtítulo se oculta para ganar espacio.
+- Los botones "Cargar planilla" / "Guardar" / "Borrar" / "Instalar app"
+  ocupan el ancho disponible y se reordenan.
+- Las pestañas (Cuadro General, Indicadores, etc.) se pueden deslizar
+  horizontalmente con el dedo.
+- Los filtros pasan a dos columnas en vez de una fila larga.
+- Las tablas reducen tamaño de fuente y padding, y siguen scrolleando
+  horizontalmente si hace falta.
+
 ## Próximo paso: panel general de vehículos (GPS + Indicadores)
 
 Cuando quieras integrar esto con el HTML del GPS (que va a seguir siendo

@@ -555,7 +555,7 @@ table.heatmap td.heatmap-cell.empty{background:var(--surface-2)!important;color:
     </div>
     <div class="topbar-actions">
       <span class="file-meta" id="fileMeta"></span>
-      <button class="btn" id="btnInstalarApp" style="display:none;">
+      <button class="btn" id="btnInstalarApp">
         <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         Instalar app
       </button>
@@ -2309,6 +2309,53 @@ function initTabs(){
 /* ---------- PWA: instalar en escritorio / celular ---------- */
 let deferredInstallPrompt = null;
 
+function detectPlatform(){
+  const ua = navigator.userAgent;
+  const isIOS = /iphone|ipad|ipod/i.test(ua);
+  const isAndroid = /android/i.test(ua);
+  const isEdge = /edg\//i.test(ua);
+  const isChrome = /chrome\//i.test(ua) && !isEdge;
+  const isSafari = /safari\//i.test(ua) && !isChrome && !isEdge && !isAndroid;
+  const isMac = /macintosh|mac os x/i.test(ua) && !isIOS;
+  const isWindows = /windows/i.test(ua);
+  if(isIOS) return 'ios';
+  if(isAndroid) return 'android';
+  if(isMac && isSafari) return 'mac-safari';
+  if(isEdge) return 'desktop-edge';
+  if(isChrome) return 'desktop-chrome';
+  return 'other';
+}
+
+const INSTALL_STEPS = {
+  'ios': ['Tocá el ícono <strong>Compartir</strong> (el cuadrado con la flecha hacia arriba) en la barra de Safari.', 'Elegí <strong>"Agregar a inicio"</strong> en la lista de opciones.', 'Confirmá tocando <strong>"Agregar"</strong> arriba a la derecha.'],
+  'android': ['Tocá el menú <strong>⋮</strong> (tres puntos) arriba a la derecha de Chrome.', 'Elegí <strong>"Instalar app"</strong> o <strong>"Agregar a pantalla de inicio"</strong>.', 'Confirmá en el cuadro que aparece.'],
+  'desktop-chrome': ['Buscá el ícono <strong>⊕ Instalar</strong> a la derecha de la barra de direcciones.', 'Si no lo ves: abrí el menú <strong>⋮</strong> → <strong>"Guardar y compartir"</strong> → <strong>"Instalar Indicadores GV..."</strong>.', 'Confirmá en el cuadro que aparece.'],
+  'desktop-edge': ['Buscá el ícono <strong>⊕</strong> a la derecha de la barra de direcciones.', 'Si no lo ves: abrí el menú <strong>···</strong> → <strong>"Apps"</strong> → <strong>"Instalar este sitio como una aplicación"</strong>.', 'Confirmá en el cuadro que aparece.'],
+  'mac-safari': ['En la barra de menú elegí <strong>Archivo</strong> → <strong>"Agregar al Dock"</strong> (Safari 17+).', 'Si esa opción no aparece, tu versión de Safari no soporta instalar sitios; podés usar Chrome o Edge para instalarlo.'],
+  'other': ['Abrí el menú de tu navegador y buscá una opción como <strong>"Instalar app"</strong>, <strong>"Agregar a pantalla de inicio"</strong> o <strong>"Agregar al Dock"</strong>.']
+};
+
+function showInstallInstructions(){
+  const platform = detectPlatform();
+  const steps = INSTALL_STEPS[platform] || INSTALL_STEPS.other;
+  const overlay = el('div',{
+    style:'position:fixed;inset:0;background:rgba(23,38,58,.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;'
+  });
+  const box = el('div',{
+    style:'background:var(--surface);border-radius:var(--radius-lg);box-shadow:var(--shadow-pop);max-width:380px;width:100%;padding:22px;'
+  },
+    el('h3',{style:'margin:0 0 4px;font-size:16px;color:var(--text);'}, 'Instalar Indicadores GV'),
+    el('p',{style:'margin:0 0 14px;font-size:12.5px;color:var(--text-muted);'}, 'Tu navegador no ofrece el instalador automático acá, pero podés agregarla igual en unos pasos:'),
+    el('ol',{style:'margin:0 0 18px;padding-left:20px;font-size:13px;color:var(--text);line-height:1.6;'},
+      ...steps.map(s=>el('li',{html:s}))
+    ),
+    el('button',{class:'btn btn-primary',style:'width:100%;justify-content:center;',onclick:()=>overlay.remove()}, 'Entendido')
+  );
+  overlay.appendChild(box);
+  overlay.addEventListener('click', (e)=>{ if(e.target===overlay) overlay.remove(); });
+  document.body.appendChild(overlay);
+}
+
 function initPWA(){
   // Registrar el service worker (necesario para que Chrome/Edge/Android
   // consideren la app instalable). Falla en silencio si se abre el
@@ -2320,36 +2367,30 @@ function initPWA(){
   const btn = document.getElementById('btnInstalarApp');
 
   // Chrome / Edge / Android: se dispara cuando el navegador decide que
-  // la app cumple los criterios de instalación.
+  // la app cumple los criterios de instalación. El botón ya está
+  // visible desde el arranque, así que esto solo habilita el prompt
+  // nativo en vez de mostrar las instrucciones manuales.
   window.addEventListener('beforeinstallprompt', (e)=>{
     e.preventDefault();
     deferredInstallPrompt = e;
-    btn.style.display = '';
   });
 
   btn.addEventListener('click', async ()=>{
     if(deferredInstallPrompt){
       deferredInstallPrompt.prompt();
-      await deferredInstallPrompt.userChoice;
+      const choice = await deferredInstallPrompt.userChoice;
       deferredInstallPrompt = null;
-      btn.style.display = 'none';
+      if(choice && choice.outcome === 'accepted') btn.style.display = 'none';
       return;
     }
-    // iOS Safari (y otros navegadores sin prompt nativo): instrucciones manuales.
-    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-    toast(isIOS
-      ? 'En iPhone/iPad: tocá el ícono Compartir y elegí "Agregar a inicio".'
-      : 'Buscá la opción "Instalar app" o "Agregar a pantalla de inicio" en el menú del navegador.');
+    showInstallInstructions();
   });
+
+  window.addEventListener('appinstalled', ()=>{ btn.style.display = 'none'; toast('¡Instalada! Ya la tenés como app.'); });
 
   // Ya instalada (standalone): no tiene sentido mostrar el botón.
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
   if(isStandalone) btn.style.display = 'none';
-
-  // iOS no dispara beforeinstallprompt: mostramos el botón igual para
-  // que el usuario vea las instrucciones manuales, salvo que ya esté instalada.
-  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if(isIOS && !isStandalone) btn.style.display = '';
 }
 
 /* ---------- init ---------- */
