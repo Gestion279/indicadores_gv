@@ -185,6 +185,7 @@ main{flex:1;padding:22px 28px 48px;max-width:1580px;width:100%;margin:0 auto;}
 .card-title{font-size:10.5px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .card-month{font-size:10px;color:var(--text-faint);font-weight:600;white-space:nowrap;}
 .card-value{font-family:var(--font-num);font-size:clamp(14px,1.5vw,21px);font-weight:700;color:var(--text);letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.card-value-compact{display:none;} /* se activa solo en mobile, ver media query */
 .card-value small{font-size:13px;font-weight:600;color:var(--text-muted);}
 .card-split{display:flex;gap:10px;margin-top:2px;}
 .card-split-item{flex:1;min-width:0;}
@@ -472,12 +473,14 @@ table.heatmap td.heatmap-cell.empty{background:var(--surface-2)!important;color:
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 /* =========================================================
-   Responsive — SOLO pantallas de celular (max-width:640px).
-   Desktop/tablet quedan exactamente como antes.
+   Responsive — SOLO pantallas de celular/tablet chica
+   (max-width:768px). Desktop queda exactamente como antes:
+   ninguna regla de acá se aplica por encima de 768px de ancho.
    ========================================================= */
-@media(max-width:640px){
+@media(max-width:768px){
   html{-webkit-text-size-adjust:100%;}
-  body{font-size:13px;}
+  body{font-size:13px;width:100%;max-width:100%;overflow-x:hidden;}
+  #app{max-width:100%;}
 
   .topbar{
     flex-direction:column;
@@ -523,22 +526,69 @@ table.heatmap td.heatmap-cell.empty{background:var(--surface-2)!important;color:
     flex:none;
   }
 
-  main{padding:14px 10px 32px;}
+  main{padding:14px 10px 32px;max-width:100%;box-sizing:border-box;}
 
+  /* Títulos de sección: permitir que envuelvan en vez de cortarse */
+  .section-label{flex-wrap:wrap;row-gap:4px;margin:20px 0 10px;}
+  .section-label > span:first-child{
+    white-space:normal;flex:1 1 auto;min-width:0;line-height:1.35;
+  }
+  .section-label .line{flex:1 1 30px;}
+
+  /* Filtros: 2 columnas cómodas para tocar con el dedo */
   .filters-bar{padding:10px;gap:8px;}
   .filter{flex:1 1 calc(50% - 8px);}
-  .filter-btn{min-width:0;width:100%;padding:8px 8px 8px 10px;font-size:12px;}
+  .filter-btn{min-width:0;width:100%;padding:10px 8px 10px 10px;font-size:12.5px;}
   .filter-panel{width:min(260px,86vw);}
 
-  .card{padding:14px;}
-  .table-wrap{max-height:70vh;}
+  /* Tarjetas genéricas */
+  .card{padding:14px;min-width:0;}
+
+  /* Tablas: el scroll horizontal queda contenido dentro de su propia tarjeta */
+  .table-wrap{max-height:70vh;width:100%;max-width:100%;box-sizing:border-box;}
   table.data-table{font-size:11.5px;}
   table.data-table thead th,
   table.data-table tbody td{padding:7px 8px;}
 
+  /* Gráfico + tabla que en desktop van lado a lado: en mobile, apilados
+     al 100% del ancho (aplica a TODAS las .charts-row, sea cual sea su
+     cantidad de columnas en desktop, incluida "Service vs. Reparaciones"
+     y cualquier otro par gráfico/tabla). */
+  .charts-row{grid-template-columns:1fr !important;gap:14px;}
+  .chart-card{min-width:0;padding:16px;}
+  .chart-svg{width:100%;height:auto;}
+
+  /* "Km Recorridos vs. Total Gastos por Zona": si no entra cómodo,
+     se desplaza horizontalmente DENTRO de su tarjeta, nunca la página. */
+  #tab-auditoria .chart-card{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  #tab-auditoria .chart-card table.heatmap{min-width:340px;}
+
+  /* Tarjetas de "Valuación por Tipo": 2 columnas fijas (antes venían
+     forzadas a 4 columnas por estilo inline, quedaban ilegibles).
+     El valor completo se oculta y se muestra una versión compacta
+     ($ 886,8 M) para no cortar el número a la mitad. */
+  #cardsValuacion{
+    grid-template-columns:repeat(2,1fr) !important;
+    gap:10px;
+  }
+  #cardsValuacion .card{min-height:88px;padding:14px;}
+  #cardsValuacion .card-value-full{display:none;}
+  #cardsValuacion .card-value-compact{
+    display:inline;white-space:nowrap;overflow:visible;text-overflow:clip;
+  }
+
+  /* Cualquier otra fila de tarjetas con ancho forzado por estilo inline
+     (ej. "Estado de Flota" a 2 columnas ya viene bien) se limita a no
+     angostarse de más. */
+  .cards-row{min-width:0;}
+
   .empty-state{margin:40px auto;padding:32px 20px;}
 
   #syncBanner{font-size:12px;padding:7px 10px;}
+}
+
+@media(max-width:400px){
+  #cardsValuacion{grid-template-columns:repeat(2,1fr) !important;} /* se mantiene en 2 columnas incluso en celulares muy chicos (360–400px) */
 }
 
 </style>
@@ -873,6 +923,17 @@ function fmtMoney(n){
 function fmtMoney2(n){
   if(!isFinite(n)) n=0;
   return '$ '+n.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+// Formato compacto SOLO para mostrar en tarjetas angostas en mobile
+// (vía CSS, ver .card-value-compact). No se usa para ningún cálculo.
+function fmtMoneyCompact(n){
+  if(!isFinite(n)) n=0;
+  const abs = Math.abs(n);
+  const opts = {minimumFractionDigits:1,maximumFractionDigits:1};
+  if(abs >= 1e9) return '$ '+(n/1e9).toLocaleString('es-AR',opts)+' mil M';
+  if(abs >= 1e6) return '$ '+(n/1e6).toLocaleString('es-AR',opts)+' M';
+  if(abs >= 1e3) return '$ '+(n/1e3).toLocaleString('es-AR',opts)+' mil';
+  return fmtMoney(n);
 }
 function fmtNum(n,d){
   if(!isFinite(n)) n=0;
@@ -1218,10 +1279,13 @@ function renderCardsGeneral(){
   const reparTotal = rows.reduce((s,r)=>s+totalRep(r),0);
   wrap.appendChild(cardSimple('Total de Reparaciones', 'Acumulado', fmtMoney(reparTotal), 'var(--accent-dark)'));
 }
-function cardSimple(title, month, value, color){
+function cardSimple(title, month, value, color, compactValue){
   return el('div',{class:'card', style:'--accent-bar:'+color},
     el('div',{class:'card-head'}, el('div',{class:'card-title'},title), el('div',{class:'card-month'}, month?('('+month+')'):'')),
-    el('div',{class:'card-value'}, value)
+    el('div',{class:'card-value'},
+      el('span',{class:'card-value-full'}, value),
+      compactValue ? el('span',{class:'card-value-compact'}, compactValue) : null
+    )
   );
 }
 function cardSplit(title, month, items, color){
@@ -1264,7 +1328,7 @@ function renderCardsValuacion(){
   }
   TIPOS_VALUACION.forEach(tipo=>{
     const total = monthRows.filter(r=>r.tipo===tipo).reduce((s,r)=>s+r.valuacion,0);
-    wrap.appendChild(cardSimple(TIPO_TITLES[tipo]||tipo, cardMonth, fmtMoney(total), TIPO_COLORS[tipo]||'var(--accent)'));
+    wrap.appendChild(cardSimple(TIPO_TITLES[tipo]||tipo, cardMonth, fmtMoney(total), TIPO_COLORS[tipo]||'var(--accent)', fmtMoneyCompact(total)));
   });
   renderValuacionLegend(cardMonth);
 }
