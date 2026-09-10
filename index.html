@@ -558,10 +558,15 @@ table.heatmap td.heatmap-cell.empty{background:var(--surface-2)!important;color:
   .chart-card{min-width:0;padding:16px;}
   .chart-svg{width:100%;height:auto;}
 
-  /* "Km Recorridos vs. Total Gastos por Zona": si no entra cómodo,
-     se desplaza horizontalmente DENTRO de su tarjeta, nunca la página. */
-  #tab-auditoria .chart-card{overflow-x:auto;-webkit-overflow-scrolling:touch;}
-  #tab-auditoria .chart-card table.heatmap{min-width:340px;}
+  /* Cualquier tabla tipo "mapa de calor" (Costo Unitario por Zona,
+     Km Recorridos vs. Total Gastos, Consumo/Rendimiento por Zona, etc.):
+     si las columnas no entran cómodas, la tarjeta se desplaza
+     horizontalmente y el valor nunca queda cortado ni se sale del área
+     de la tabla — nunca se compacta al punto de desbordar la celda. */
+  .chart-card{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .chart-card table.heatmap{width:auto;min-width:100%;}
+  .chart-card table.heatmap th,
+  .chart-card table.heatmap td{white-space:nowrap;}
 
   /* Tarjetas de "Valuación por Tipo": 2 columnas fijas (antes venían
      forzadas a 4 columnas por estilo inline, quedaban ilegibles).
