@@ -1090,9 +1090,17 @@ async function loadFromSupabase(){
     // y en páginas grandes: para el volumen actual (~1500-3000 filas)
     // esto trae todo en un solo viaje de red en vez de 2 o 3.
     const cols = 'mes,vehiculo_id,dominio,modelo,anio,tipo,zona,valuacion,estado,edad,activo,reparacion,km,litros,seguro,patente,vtv,cubiertas,service,repar_varias';
-    const pageSize = 5000;
+    // OJO: Supabase/PostgREST limita cada respuesta a 1000 filas por defecto
+    // (Project Settings > API > Max Rows), sin importar el tamaño de .range()
+    // que pidamos. Si pageSize fuera mayor a ese tope, cada página vendría
+    // truncada a 1000 y el corte "data.length < pageSize" se activaría en
+    // la primera vuelta, cortando la carga antes de traer todo. Por eso
+    // pageSize debe ser <= al tope real del proyecto, y agregamos un orden
+    // explícito para que la paginación sea determinística (sin order(), el
+    // resultado de cada página no está garantizado a ser consistente).
+    const pageSize = 1000;
     for(let from=0; ; from+=pageSize){
-      const { data, error } = await sb.from(SB_TABLE).select(cols).range(from, from+pageSize-1);
+      const { data, error } = await sb.from(SB_TABLE).select(cols).order('mes', {ascending:true}).range(from, from+pageSize-1);
       if(error) throw error;
       all = all.concat(data);
       if(!data.length || data.length < pageSize) break;
